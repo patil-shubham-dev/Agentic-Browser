@@ -1,0 +1,27 @@
+appId: com.agentic-browser.app
+productName: Agentic Browser
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**/*
+  - "!node_modules/**/*"
+win:
+  target:
+    - nsis
+  icon: resources/icon.ico
+mac:
+  target:
+    - dmg
+  icon: resources/icon.icns
+  category: public.app-category.developer-tools
+linux:
+  target:
+    - AppImage
+  icon: resources/
+  category: Development
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+electronDownload:
+  mirror: "https://npmmirror.com/mirrors/electron/"
