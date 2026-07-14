@@ -188,6 +188,8 @@ export const IPC_CHANNELS = {
   TAB_DUPLICATE: 'tab:duplicate',
   WINDOW_CREATE: 'window:create',
   WINDOW_CLOSE: 'window:close',
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
 
   // Tab state updates (main -> renderer)
   TAB_STATE_UPDATE: 'tab:stateUpdate',
@@ -229,4 +231,14 @@ export const IPC_CHANNELS = {
   SESSION_START: 'session:start',
   SESSION_STOP: 'session:stop',
   SESSION_LOG: 'session:log',
+
+  // Sensitive actions
+  SENSITIVE_ACTION_REQUEST: 'sensitive-action:request',
+  SENSITIVE_ACTION_APPROVAL: 'sensitive-action:approval',
+} as const
+
+export const WINDOW_CONTROL_CHANNELS = {
+  MINIMIZE: 'window:minimize',
+  MAXIMIZE: 'window:maximize',
+  CLOSE: 'window:close',
 } as const

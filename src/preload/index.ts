@@ -5,9 +5,13 @@ const api = {
   // Tab management
   createTab: (url?: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_CREATE, url),
   closeTab: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_CLOSE, tabId),
-  navigate: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_NAVIGATE, url),
+  navigateTab: (tabId: string, url: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_NAVIGATE, { tabId, url }),
+  navigate: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_NAVIGATE, { url }),
+  goBackTab: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_GO_BACK, tabId),
   goBack: () => ipcRenderer.invoke(IPC_CHANNELS.TAB_GO_BACK),
+  goForwardTab: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_GO_FORWARD, tabId),
   goForward: () => ipcRenderer.invoke(IPC_CHANNELS.TAB_GO_FORWARD),
+  reloadTab: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.TAB_RELOAD, tabId),
   reload: () => ipcRenderer.invoke(IPC_CHANNELS.TAB_RELOAD),
   createWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CREATE),
 
@@ -56,6 +60,7 @@ const api = {
   // Sessions
   startSession: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_START, tabId),
   stopSession: (sessionId: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_STOP, sessionId),
+  endSession: (tabId: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_STOP, tabId),
   getSession: (sessionId: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_LOG, sessionId),
 
   // Agent control
@@ -63,6 +68,20 @@ const api = {
   pauseAgent: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_PAUSE),
   resumeAgent: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_RESUME),
   takeOver: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_TAKE_OVER),
+
+  // Window controls
+  minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+  maximizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE),
+  closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
+
+  // Sensitive action approval
+  onSensitiveActionRequest: (callback: (action: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, action: unknown) => callback(action)
+    ipcRenderer.on(IPC_CHANNELS.SENSITIVE_ACTION_REQUEST, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SENSITIVE_ACTION_REQUEST, handler)
+  },
+  approveSensitiveAction: (actionId: string, approved: boolean) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SENSITIVE_ACTION_APPROVAL, actionId, approved),
 
   // Dialogs
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),

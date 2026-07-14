@@ -10,6 +10,16 @@ export class PermissionManager {
     this.store = store
   }
 
+  getPermissionStatus(domain: string): 'allowed' | 'blocked' | 'unknown' {
+    if (this.store.isAllowed(domain)) {
+      return 'allowed'
+    }
+    if (this.store.isBlocked(domain)) {
+      return 'blocked'
+    }
+    return 'unknown'
+  }
+
   isActionAllowed(domain: string): boolean {
     return this.store.isAllowed(domain)
   }

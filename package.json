@@ -12,13 +12,19 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux"
   },
-  "keywords": ["agentic-browser", "electron", "ai-agent", "browser-automation"],
+  "keywords": [
+    "agentic-browser",
+    "electron",
+    "ai-agent",
+    "browser-automation"
+  ],
   "author": "Shubham",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
     "electron": "^43.0.0",
+    "pngjs": "^7.0.0",
     "puppeteer-core": "^25.3.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

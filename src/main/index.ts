@@ -5,11 +5,15 @@ import { WindowManager } from './windows/manager'
 import { ProfileService } from './services/profile'
 import { PermissionStore } from './services/permissions'
 import { SessionStore } from './services/session'
+import { AgentOrchestrator } from '../agent'
+import { Logger } from './logger'
 
 let windowManager: WindowManager
 let profileService: ProfileService
 let permissionStore: PermissionStore
 let sessionStore: SessionStore
+let logger: Logger
+let agentOrchestrator: AgentOrchestrator
 
 async function createMainWindow(): Promise<BrowserWindow> {
   const win = windowManager.createWindow()
@@ -24,17 +28,25 @@ async function createMainWindow(): Promise<BrowserWindow> {
 }
 
 app.whenReady().then(async () => {
+  logger = new Logger('Main')
   profileService = new ProfileService()
-  permissionStore = new PermissionStore()
-  sessionStore = new SessionStore()
-
+  permissionStore = new PermissionStore(logger)
+  sessionStore = new SessionStore(logger)
   windowManager = new WindowManager()
+  agentOrchestrator = new AgentOrchestrator({
+    sessionStore,
+    windowManager,
+    permissionManager: permissionStore,
+    logger,
+  })
 
   initIpcHandlers({
     permissionStore,
     sessionStore,
     windowManager,
     profileService,
+    agentOrchestrator,
+    logger,
   })
 
   await createMainWindow()
@@ -55,6 +67,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   sessionStore.close()
   permissionStore.close()
+  logger.info('Application closed.')
 })
 
 export { windowManager, profileService, permissionStore, sessionStore }
