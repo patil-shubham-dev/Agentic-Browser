@@ -3,8 +3,9 @@ import { PermissionStore } from '../services/permissions'
 import { SessionStore } from '../services/session'
 import { WindowManager } from '../windows/manager'
 import { ProfileService } from '../services/profile'
-import { IPC_CHANNELS } from '../../shared/types'
+import { IPC_CHANNELS, AgentAction } from '../../shared/types'
 import { Logger } from '../logger'
+import { AgentOrchestrator } from '../../agent/index'
 
 interface IpcHandlerDeps {
   permissionStore: PermissionStore
@@ -39,13 +40,9 @@ export function initIpcHandlers(deps: IpcHandlerDeps): void {
   ipcMain.handle(IPC_CHANNELS.TAB_CLOSE, (_event, tabId: string) => {
     try {
       logger.info('TAB_CLOSE: Closing tab', { tabId })
-      // End any active session for this tab
-      const sessions = sessionStore.getAllSessions?.() || []
-      const session = sessions.find((s: any) => s.tabId === tabId)
-      if (session) {
-        sessionStore.endSession(session.id)
-        logger.info('TAB_CLOSE: Ended session for tab', { tabId, sessionId: session.id })
-      }
+      // End any active agent session for this tab
+      agentOrchestrator.endSession(tabId)
+      logger.info('TAB_CLOSE: Ended agent session for tab', { tabId })
       return { success: true }
     } catch (err) {
       logger.error('TAB_CLOSE failed:', err)
@@ -248,10 +245,16 @@ export function initIpcHandlers(deps: IpcHandlerDeps): void {
   })
 
   // Session handlers
-  ipcMain.handle(IPC_CHANNELS.SESSION_START, (_event, tabId: string) => {
+  ipcMain.handle(IPC_CHANNELS.SESSION_START, async (_event, tabId: string) => {
     try {
       logger.info('SESSION_START: Starting session', { tabId })
-      return sessionStore.createSession(tabId)
+      const result = await agentOrchestrator.startSession(tabId)
+      if (typeof result === 'string') {
+        return result
+      } else {
+        logger.error('SESSION_START failed:', result.error)
+        return null
+      }
     } catch (err) {
       logger.error('SESSION_START failed:', err)
       return null
@@ -261,7 +264,7 @@ export function initIpcHandlers(deps: IpcHandlerDeps): void {
   ipcMain.handle(IPC_CHANNELS.SESSION_STOP, (_event, sessionId: string) => {
     try {
       logger.info('SESSION_STOP: Stopping session', { sessionId })
-      sessionStore.endSession(sessionId)
+      agentOrchestrator.endSession(sessionId)
       return { success: true }
     } catch (err) {
       logger.error('SESSION_STOP failed:', err)
@@ -276,6 +279,55 @@ export function initIpcHandlers(deps: IpcHandlerDeps): void {
     } catch (err) {
       logger.error('SESSION_LOG failed:', err)
       return null
+    }
+  })
+
+  // Agent handlers
+  ipcMain.handle(IPC_CHANNELS.AGENT_EXECUTE, async (_event, action: AgentAction) => {
+    try {
+      logger.info('AGENT_EXECUTE: Executing action', { actionType: action.type })
+      const sessionId = action.sessionId
+      if (!sessionId) {
+        return { success: false, error: 'Action missing sessionId' }
+      }
+      const result = await agentOrchestrator.executeAction(sessionId, action)
+      return result
+    } catch (err) {
+      logger.error('AGENT_EXECUTE failed:', err)
+      return { success: false, error: 'Failed to execute agent action' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_PAUSE, (_event, sessionId: string) => {
+    try {
+      logger.info('AGENT_PAUSE: Pausing agent', { sessionId })
+      agentOrchestrator.pauseSession(sessionId)
+      return { success: true }
+    } catch (err) {
+      logger.error('AGENT_PAUSE failed:', err)
+      return { success: false, error: 'Failed to pause agent' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_RESUME, (_event, sessionId: string) => {
+    try {
+      logger.info('AGENT_RESUME: Resuming agent', { sessionId })
+      agentOrchestrator.resumeSession(sessionId)
+      return { success: true }
+    } catch (err) {
+      logger.error('AGENT_RESUME failed:', err)
+      return { success: false, error: 'Failed to resume agent' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_TAKE_OVER, (_event, sessionId: string) => {
+    try {
+      logger.info('AGENT_TAKE_OVER: Agent takeover', { sessionId })
+      agentOrchestrator.endSession(sessionId)
+      return { success: true }
+    } catch (err) {
+      logger.error('AGENT_TAKE_OVER failed:', err)
+      return { success: false, error: 'Failed to take over agent' }
     }
   })
 

@@ -92,6 +92,7 @@ export interface AgentAction {
   timestamp: number
   status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled'
   result?: ActionResult
+  sessionId?: string
 }
 
 export type AgentActionType =

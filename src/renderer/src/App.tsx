@@ -6,10 +6,8 @@ import { AddressBar } from './components/AddressBar'
 import { Sidebar } from './components/Sidebar'
 import { WebView } from './components/WebView'
 
-let tabIdCounter = 0
-
 function createTabId(): string {
-  return `tab-${++tabIdCounter}`
+  return `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 }
 
 function createInitialTab(): TabInfo {
@@ -45,6 +43,13 @@ export function App() {
   }, [])
 
   const handleTabClose = useCallback((tabId: string) => {
+    // End any active agent session for this tab
+    if (window.api?.endSession) {
+      window.api.endSession(tabId).catch((err: any) => {
+        console.error('Failed to end session:', err)
+      })
+    }
+    
     setTabs(prev => {
       const idx = prev.findIndex(t => t.id === tabId)
       const filtered = prev.filter(t => t.id !== tabId)
@@ -63,33 +68,67 @@ export function App() {
     setActiveTabId(tabId)
   }, [])
 
-  const handleNavigate = useCallback((url: string) => {
-    if (activeTab) {
+  const handleNavigate = useCallback(async (url: string) => {
+    if (activeTab && window.api?.navigateTab) {
       updateTab(activeTab.id, { url, isLoading: true })
-
-      setTimeout(() => {
-        updateTab(activeTab.id, {
-          title: url.includes('localhost') ? 'Local Dev Server' : url.replace(/https?:\/\//, '').split('/')[0],
-          isLoading: false,
-          canGoBack: true,
-          canGoForward: false,
-        })
-      }, 1500)
+      try {
+        const result = await window.api.navigateTab(activeTab.id, url)
+        if (result.success) {
+          updateTab(activeTab.id, {
+            title: result.title || url.replace(/https?:\/\//,'').split('/')[0],
+            isLoading: false,
+            canGoBack: result.canGoBack || false,
+            canGoForward: result.canGoForward || false,
+          })
+        } else {
+          updateTab(activeTab.id, { isLoading: false, url: activeTab.url })
+          console.error('Navigation failed:', result.error)
+        }
+      } catch (err) {
+        console.error('Navigation error:', err)
+        updateTab(activeTab.id, { isLoading: false })
+      }
     }
   }, [activeTab, updateTab])
 
-  const handleGoBack = useCallback(() => {
-    updateTab(activeTab.id, { canGoBack: false, canGoForward: true })
+  const handleGoBack = useCallback(async () => {
+    if (activeTab && window.api?.goBackTab) {
+      try {
+        const result = await window.api.goBackTab(activeTab.id)
+        if (result.success) {
+          updateTab(activeTab.id, { canGoBack: false, canGoForward: true })
+        }
+      } catch (err) {
+        console.error('Go back error:', err)
+      }
+    }
   }, [activeTab, updateTab])
 
-  const handleGoForward = useCallback(() => {
-    updateTab(activeTab.id, { canGoBack: true, canGoForward: false })
+  const handleGoForward = useCallback(async () => {
+    if (activeTab && window.api?.goForwardTab) {
+      try {
+        const result = await window.api.goForwardTab(activeTab.id)
+        if (result.success) {
+          updateTab(activeTab.id, { canGoBack: true, canGoForward: false })
+        }
+      } catch (err) {
+        console.error('Go forward error:', err)
+      }
+    }
   }, [activeTab, updateTab])
 
-  const handleReload = useCallback(() => {
-    if (activeTab) {
-      updateTab(activeTab.id, { isLoading: true, url: activeTab.url })
-      setTimeout(() => updateTab(activeTab.id, { isLoading: false }), 1000)
+  const handleReload = useCallback(async () => {
+    if (activeTab && window.api?.reloadTab) {
+      updateTab(activeTab.id, { isLoading: true })
+      try {
+        const result = await window.api.reloadTab(activeTab.id)
+        if (result.success) {
+          updateTab(activeTab.id, { isLoading: false })
+        }
+      } catch (err) {
+        console.error('Reload error:', err)
+        updateTab(activeTab.id, { isLoading: false })
+      }
     }
   }, [activeTab, updateTab])
 
@@ -103,15 +142,43 @@ export function App() {
   }, [activeTab, updateTab])
 
   const handleWindowControl = useCallback((action: 'minimize' | 'maximize' | 'close') => {
-    window.api?.navigate('about:blank')
+    switch (action) {
+      case 'minimize':
+        window.api?.minimizeWindow?.()
+        break
+      case 'maximize':
+        window.api?.maximizeWindow?.()
+        break
+      case 'close':
+        window.api?.closeWindow?.()
+        break
+    }
   }, [])
 
   useEffect(() => {
-    const cleanup = window.api?.onTabStateUpdate((data) => {
-      console.log('Tab state update:', data)
+    if (!window.api?.onTabStateUpdate) {
+      console.warn('IPC API not available')
+      return
+    }
+
+    const cleanup = window.api.onTabStateUpdate((data) => {
+      try {
+        if (data?.tabId && data?.updates) {
+          updateTab(data.tabId, data.updates)
+        }
+      } catch (err) {
+        console.error('Error handling tab state update:', err)
+      }
     })
-    return () => cleanup?.()
-  }, [])
+
+    return () => {
+      try {
+        cleanup?.()
+      } catch (err) {
+        console.error('Error cleaning up IPC listener:', err)
+      }
+    }
+  }, [updateTab])
 
   return (
     <div

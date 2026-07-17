@@ -5,7 +5,7 @@ import { WindowManager } from './windows/manager'
 import { ProfileService } from './services/profile'
 import { PermissionStore } from './services/permissions'
 import { SessionStore } from './services/session'
-import { AgentOrchestrator } from '../agent'
+import { AgentOrchestrator } from '../agent/index'
 import { Logger } from './logger'
 
 let windowManager: WindowManager
